@@ -3,13 +3,12 @@ import random
 import string
 import io
 import base64
-import sys
 
-# Function to generate a 6-digit verification code
+# Verification code generator
 def generate_verification_code():
     return ''.join(random.choices(string.digits, k=6))
 
-# Function to encode file to base64 for download
+# Create base64 download link
 def get_file_download_link(file_buffer, filename):
     try:
         b64 = base64.b64encode(file_buffer.getvalue()).decode()
@@ -17,7 +16,7 @@ def get_file_download_link(file_buffer, filename):
     except MemoryError:
         return None
 
-# Initialize session state variables
+# Session states
 if 'verification_code' not in st.session_state:
     st.session_state.verification_code = None
 if 'file_buffer' not in st.session_state:
@@ -25,7 +24,7 @@ if 'file_buffer' not in st.session_state:
 if 'filename' not in st.session_state:
     st.session_state.filename = None
 
-# Custom HTML/CSS for a colorful design
+# HTML/CSS Template
 html_content = """
 <!DOCTYPE html>
 <html>
@@ -62,7 +61,6 @@ html_content = """
         <div class="shadow-lg rounded-lg p-8 max-w-lg mx-auto">
             <h1 class="text-4xl font-bold text-center text-cyan-300 mb-6 animate-pulse">IPCS File Sharing</h1>
             <div id="content" class="space-y-6">
-                <!-- Streamlit will inject content here -->
             </div>
         </div>
     </div>
@@ -70,56 +68,58 @@ html_content = """
 </html>
 """
 
-# Render the HTML template
+# Render HTML
 st.markdown(html_content, unsafe_allow_html=True)
 
-# Streamlit app logic
-st.markdown("<h2 class='text-xl font-semibold text-white mb-4'>Upload a File (Max 1GB per file)</h2>", unsafe_allow_html=True)
-st.markdown("<p class='text-gray-300 mb-4'>Drag and drop or click to select a file to share securely. Each file must be 1GB or smaller.</p>", unsafe_allow_html=True)
-uploaded_file = st.file_uploader("Choose a file to share", type=None)
+# Upload section
+st.markdown("<h2 class='text-xl font-semibold text-white mb-4'>📤 ഫയൽ അപ്‌ലോഡ് ചെയ്യൂ (Maximum 1GB)</h2>", unsafe_allow_html=True)
+st.markdown("<p class='text-gray-300 mb-4'>1GB-ലും കുറഞ്ഞ ഫയലുകൾ മാത്രം അപ്‌ലോഡ് ചെയ്യാവുന്നതാണ്. Verification code ഉപയോഗിച്ച് അത് ഷെയർ ചെയ്യാം.</p>", unsafe_allow_html=True)
+uploaded_file = st.file_uploader("ഒരു ഫയൽ തിരഞ്ഞെടുക്കുക", type=None)
 
 if uploaded_file is not None:
-    # Check file size (1GB = 1024 * 1024 * 1024 bytes)
-    max_size = 1024 * 1024 * 1024  # 1GB in bytes
+    max_size = 1024 * 1024 * 1024
     if uploaded_file.size > max_size:
         st.markdown(
-            "<div class='bg-red-200 p-4 rounded-md text-red-800'>Error: File size exceeds 1GB limit. Please upload a file smaller than 1GB.</div>",
+            "<div class='bg-red-200 p-4 rounded-md text-red-800'>❌ പിശക്: ഫയൽ വലുപ്പം 1GB-നെ കവിയുന്നു. ചെറിയ ഫയൽ അപ്‌ലോഡ് ചെയ്യൂ.</div>",
             unsafe_allow_html=True
         )
     else:
         try:
-            # Read file into memory
             file_buffer = io.BytesIO(uploaded_file.read())
             st.session_state.file_buffer = file_buffer
             st.session_state.filename = uploaded_file.name
-            
-            # Generate or retrieve verification code
+
             if st.session_state.verification_code is None:
                 st.session_state.verification_code = generate_verification_code()
-            
+
             st.markdown(
                 f"""
                 <div class='bg-green-200 p-4 rounded-md'>
-                    <p class='text-green-800'>File uploaded successfully: <strong>{uploaded_file.name}</strong> ({uploaded_file.size / (1024 * 1024):.2f} MB)</p>
-                    <p class='text-green-800'>Share this verification code with the receiver: <strong>{st.session_state.verification_code}</strong></p>
+                    <p class='text-green-800'>✅ ഫയൽ അപ്‌ലോഡ് വിജയകരം: <strong>{uploaded_file.name}</strong> ({uploaded_file.size / (1024 * 1024):.2f} MB)</p>
+                    <p class='text-green-800'>ഈ Verification Code share ചെയ്യൂ: <strong>{st.session_state.verification_code}</strong></p>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
         except MemoryError:
             st.markdown(
-                "<div class='bg-red-200 p-4 rounded-md text-red-800'>Error: Insufficient memory to process the file. Try a smaller file.</div>",
+                "<div class='bg-red-200 p-4 rounded-md text-red-800'>❌ പിശക്: ഫയൽ process ചെയ്യാൻ memory പോരാ. ചെറിയ ഫയൽ പരീക്ഷിക്കുക.</div>",
                 unsafe_allow_html=True
             )
 
-# Verification code input for downloading
-st.markdown("<h2 class='text-xl font-semibold text-white mb-4 mt-8'>Download a File</h2>", unsafe_allow_html=True)
-st.markdown("<p class='text-gray-300 mb-4'>Enter the verification code to download the shared file.</p>", unsafe_allow_html=True)
-user_code = st.text_input("Enter the verification code", type="password")
-if st.button("Verify and Download", key="download_button", help="Click to verify and download the file"):
+# Download section
+st.markdown("<h2 class='text-xl font-semibold text-white mb-4 mt-8'>📥 ഫയൽ ഡൗൺലോഡ് ചെയ്യൂ</h2>", unsafe_allow_html=True)
+st.markdown("<p class='text-gray-300 mb-4'>Verification Code ഉപയോഗിച്ച് ഫയൽ ഡൗൺലോഡ് ചെയ്യാം.</p>", unsafe_allow_html=True)
+user_code = st.text_input("Verification Code നൽകൂ", type="password")
+
+if st.button("✅ ഡൗൺലോഡ് ചെയ്യൂ"):
     if st.session_state.verification_code is None or st.session_state.file_buffer is None:
         st.markdown(
-            "<div class='bg-red-200 p-4 rounded-md text-red-800'>Error: No file has been uploaded yet.</div>",
+            """
+            <div class='bg-red-200 p-4 rounded-md text-red-800'>
+                ❌ പിശക്: ഫയൽ ഇപ്പോഴും അപ്‌ലോഡ് ചെയ്തിട്ടില്ല. ദയവായി ആദ്യം ഫയൽ അപ്‌ലോഡ് ചെയ്യൂ.
+            </div>
+            """,
             unsafe_allow_html=True
         )
     elif user_code == st.session_state.verification_code:
@@ -128,19 +128,20 @@ if st.button("Verify and Download", key="download_button", help="Click to verify
             st.markdown(
                 f"""
                 <div class='bg-blue-200 p-4 rounded-md'>
-                    <p class='text-blue-800'>Verification successful! <a href='{download_link}' download='{st.session_state.filename}' class='text-blue-600 underline btn-gradient inline-block px-4 py-2 rounded-md text-white'>Click here to download {st.session_state.filename}</a></p>
+                    ✅ Verification വിജയിച്ചു! <br>
+                    <a href='{download_link}' download='{st.session_state.filename}' class='text-blue-600 underline btn-gradient inline-block px-4 py-2 rounded-md text-white'>👉 {st.session_state.filename} ഡൗൺലോഡ് ചെയ്യാൻ ഇവിടെ ക്ലിക്ക് ചെയ്യൂ</a>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
         else:
             st.markdown(
-                "<div class='bg-red-200 p-4 rounded-md text-red-800'>Error: Failed to generate download link due to memory issues. Try a smaller file.</div>",
+                "<div class='bg-red-200 p-4 rounded-md text-red-800'>❌ പിശക്: ഫയൽ ഡൗൺലോഡ് ലിങ്ക് സൃഷ്ടിക്കാൻ സാധിച്ചില്ല. ചെറിയ ഫയൽ പരീക്ഷിക്കുക.</div>",
                 unsafe_allow_html=True
             )
     else:
         st.markdown(
-            "<div class='bg-red-200 p-4 rounded-md text-red-800'>Error: Incorrect verification code.</div>",
+            "<div class='bg-red-200 p-4 rounded-md text-red-800'>❌ പിശക്: Verification Code തെറ്റാണ്. വീണ്ടും പരിശോധിക്കുക.</div>",
             unsafe_allow_html=True
         )
 
@@ -148,7 +149,7 @@ if st.button("Verify and Download", key="download_button", help="Click to verify
 st.markdown(
     """
     <div class='mt-8 text-center text-gray-300'>
-        <p>Built with Streamlit & Tailwind CSS | Supports drag-and-drop files up to 1GB</p>
+        <p>⚙️ Powered by Streamlit + Tailwind CSS | 1GB വരെയുള്ള ഫയലുകൾ പിന്തുണയ്ക്കുന്നു.</p>
     </div>
     """,
     unsafe_allow_html=True
