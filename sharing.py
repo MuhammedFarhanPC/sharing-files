@@ -3,36 +3,34 @@ import random
 import string
 import io
 import base64
+import os
+
+# Create a persistent folder to store files
+SAVE_DIR = "uploaded_files"
+os.makedirs(SAVE_DIR, exist_ok=True)
 
 # Verification code generator
 def generate_verification_code():
     return ''.join(random.choices(string.digits, k=6))
 
 # Create base64 download link
-def get_file_download_link(file_buffer, filename):
+def get_file_download_link(filepath, filename):
     try:
-        b64 = base64.b64encode(file_buffer.getvalue()).decode()
+        with open(filepath, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
         return f'data:application/octet-stream;base64,{b64}'
     except MemoryError:
         return None
-
-# Session states
-if 'verification_code' not in st.session_state:
-    st.session_state.verification_code = None
-if 'file_buffer' not in st.session_state:
-    st.session_state.file_buffer = None
-if 'filename' not in st.session_state:
-    st.session_state.filename = None
 
 # HTML/CSS Template
 html_content = """
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset=\"UTF-8\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
     <title>File Sharing App</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href=\"https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css\" rel=\"stylesheet\">
     <style>
         body {
             background: linear-gradient(135deg, #1e3a8a, #7c3aed);
@@ -56,11 +54,11 @@ html_content = """
         }
     </style>
 </head>
-<body class="font-sans min-h-screen flex items-center justify-center">
-    <div class="container mx-auto p-6">
-        <div class="shadow-lg rounded-lg p-8 max-w-lg mx-auto">
-            <h1 class="text-4xl font-bold text-center text-cyan-300 mb-6 animate-pulse">IPCS File Sharing</h1>
-            <div id="content" class="space-y-6">
+<body class=\"font-sans min-h-screen flex items-center justify-center\">
+    <div class=\"container mx-auto p-6\">
+        <div class=\"shadow-lg rounded-lg p-8 max-w-lg mx-auto\">
+            <h1 class=\"text-4xl font-bold text-center text-cyan-300 mb-6 animate-pulse\">IPCS File Sharing</h1>
+            <div id=\"content\" class=\"space-y-6\">
             </div>
         </div>
     </div>
@@ -72,78 +70,44 @@ html_content = """
 st.markdown(html_content, unsafe_allow_html=True)
 
 # Upload section
-st.markdown("<h2 class='text-xl font-semibold text-white mb-4'>📤 ഫയൽ അപ്‌ലോഡ് ചെയ്യൂ (Maximum 1GB)</h2>", unsafe_allow_html=True)
-st.markdown("<p class='text-gray-300 mb-4'>1GB-ലും കുറഞ്ഞ ഫയലുകൾ മാത്രം അപ്‌ലോഡ് ചെയ്യാവുന്നതാണ്. Verification code ഉപയോഗിച്ച് അത് ഷെയർ ചെയ്യാം.</p>", unsafe_allow_html=True)
+st.markdown("<h2 class='text-xl font-semibold text-white mb-4'>\ud83d\udcc4 \u0d2b\u0d2f\u0d32\u0d4d \u0d05\u0d2a\u0d4d\u0d32\u0d4b\u0d1f\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d42 (Maximum 1GB)</h2>", unsafe_allow_html=True)
 uploaded_file = st.file_uploader("ഒരു ഫയൽ തിരഞ്ഞെടുക്കുക", type=None)
 
 if uploaded_file is not None:
-    max_size = 1024 * 1024 * 1024
-    if uploaded_file.size > max_size:
-        st.markdown(
-            "<div class='bg-red-200 p-4 rounded-md text-red-800'>❌ പിശക്: ഫയൽ വലുപ്പം 1GB-നെ കവിയുന്നു. ചെറിയ ഫയൽ അപ്‌ലോഡ് ചെയ്യൂ.</div>",
-            unsafe_allow_html=True
-        )
+    if uploaded_file.size > 1024 * 1024 * 1024:
+        st.error("❌ ഫയൽ വലുപ്പം 1GB-നെ കവിയുന്നു. ചെറിയ ഫയൽ തിരഞ്ഞെടുക്കൂ.")
     else:
-        try:
-            file_buffer = io.BytesIO(uploaded_file.read())
-            st.session_state.file_buffer = file_buffer
-            st.session_state.filename = uploaded_file.name
-
-            if st.session_state.verification_code is None:
-                st.session_state.verification_code = generate_verification_code()
-
-            st.markdown(
-                f"""
-                <div class='bg-green-200 p-4 rounded-md'>
-                    <p class='text-green-800'>✅ ഫയൽ അപ്‌ലോഡ് വിജയകരം: <strong>{uploaded_file.name}</strong> ({uploaded_file.size / (1024 * 1024):.2f} MB)</p>
-                    <p class='text-green-800'>ഈ Verification Code share ചെയ്യൂ: <strong>{st.session_state.verification_code}</strong></p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-        except MemoryError:
-            st.markdown(
-                "<div class='bg-red-200 p-4 rounded-md text-red-800'>❌ പിശക്: ഫയൽ process ചെയ്യാൻ memory പോരാ. ചെറിയ ഫയൽ പരീക്ഷിക്കുക.</div>",
-                unsafe_allow_html=True
-            )
+        verification_code = generate_verification_code()
+        save_path = os.path.join(SAVE_DIR, f"{verification_code}_{uploaded_file.name}")
+        with open(save_path, "wb") as f:
+            f.write(uploaded_file.read())
+        st.success(f"✅ ഫയൽ അപ്‌ലോഡ് വിജയകരം: {uploaded_file.name}")
+        st.info(f"🔐 Verification Code: `{verification_code}`\n\nഈ കോഡ് ഷെയർ ചെയ്യൂ.")
 
 # Download section
-st.markdown("<h2 class='text-xl font-semibold text-white mb-4 mt-8'>📥 ഫയൽ ഡൗൺലോഡ് ചെയ്യൂ</h2>", unsafe_allow_html=True)
-st.markdown("<p class='text-gray-300 mb-4'>Verification Code ഉപയോഗിച്ച് ഫയൽ ഡൗൺലോഡ് ചെയ്യാം.</p>", unsafe_allow_html=True)
-user_code = st.text_input("Verification Code നൽകൂ", type="password")
+st.markdown("<h2 class='text-xl font-semibold text-white mb-4 mt-8'>\ud83d\udcc5 \u0d2b\u0d2f\u0d32\u0d4d \u0d21\u0d57\u0d23\u0d4d\u0d32\u0d4b\u0d21\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d42</h2>", unsafe_allow_html=True)
+user_code = st.text_input("Verification Code നൽകൂ", max_chars=6)
 
 if st.button("✅ ഡൗൺലോഡ് ചെയ്യൂ"):
-    if st.session_state.verification_code is None or st.session_state.file_buffer is None:
-        st.markdown(
-            """
-            <div class='bg-red-200 p-4 rounded-md text-red-800'>
-                ❌ പിശക്: ഫയൽ ഇപ്പോഴും അപ്‌ലോഡ് ചെയ്തിട്ടില്ല. ദയവായി ആദ്യം ഫയൽ അപ്‌ലോഡ് ചെയ്യൂ.
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    elif user_code == st.session_state.verification_code:
-        download_link = get_file_download_link(st.session_state.file_buffer, st.session_state.filename)
-        if download_link:
+    matched_files = [f for f in os.listdir(SAVE_DIR) if f.startswith(user_code)]
+    if matched_files:
+        file_path = os.path.join(SAVE_DIR, matched_files[0])
+        filename = matched_files[0].split("_", 1)[1]
+        link = get_file_download_link(file_path, filename)
+        if link:
             st.markdown(
                 f"""
                 <div class='bg-blue-200 p-4 rounded-md'>
                     ✅ Verification വിജയിച്ചു! <br>
-                    <a href='{download_link}' download='{st.session_state.filename}' class='text-blue-600 underline btn-gradient inline-block px-4 py-2 rounded-md text-white'>👉 {st.session_state.filename} ഡൗൺലോഡ് ചെയ്യാൻ ഇവിടെ ക്ലിക്ക് ചെയ്യൂ</a>
+                    <a href='{link}' download='{filename}' class='text-blue-600 underline btn-gradient inline-block px-4 py-2 rounded-md text-white'>👉 {filename} ഡൗൺലോഡ് ചെയ്യാൻ ഇവിടെ ക്ലിക്ക് ചെയ്യൂ</a>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
         else:
-            st.markdown(
-                "<div class='bg-red-200 p-4 rounded-md text-red-800'>❌ പിശക്: ഫയൽ ഡൗൺലോഡ് ലിങ്ക് സൃഷ്ടിക്കാൻ സാധിച്ചില്ല. ചെറിയ ഫയൽ പരീക്ഷിക്കുക.</div>",
-                unsafe_allow_html=True
-            )
+            st.error("❌ പിശക്: ഫയൽ ഡൗൺലോഡ് ലിങ്ക് സൃഷ്ടിക്കാൻ സാധിച്ചില്ല.")
     else:
-        st.markdown(
-            "<div class='bg-red-200 p-4 rounded-md text-red-800'>❌ പിശക്: Verification Code തെറ്റാണ്. വീണ്ടും പരിശോധിക്കുക.</div>",
-            unsafe_allow_html=True
-        )
+        st.error("❌ പിശക്: Verification Code തെറ്റാണ് അല്ലെങ്കിൽ ഫയൽ ഇല്ല.")
 
 # Footer
 st.markdown(
