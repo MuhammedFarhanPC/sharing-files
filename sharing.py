@@ -2,21 +2,30 @@ import streamlit as st
 import random
 import string
 import os
+import json
 
-UPLOAD_DIR = r"C:\Users\USER\Desktop\farhan\upload file"
+UPLOAD_DIR = "C:\Users\USER\Desktop\farhan\upload file""
+DATA_FILE = "data.json"
 
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
+def load_data():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def save_data(data):
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f)
+
 def generate_verification_code():
     return ''.join(random.choices(string.digits, k=6))
 
-if 'verification_code' not in st.session_state:
-    st.session_state.verification_code = None
-if 'uploaded_filename' not in st.session_state:
-    st.session_state.uploaded_filename = None
-
 st.title("📁 ഫയൽ ഷെയറിങ് ആപ്പ്")
+
+data = load_data()
 
 uploaded_file = st.file_uploader("ഫയൽ തിരഞ്ഞെടുക്കുക (Max 1GB)", type=None)
 
@@ -28,11 +37,11 @@ if uploaded_file is not None:
         save_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
         with open(save_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
-        st.session_state.uploaded_filename = uploaded_file.name
-        if st.session_state.verification_code is None:
-            st.session_state.verification_code = generate_verification_code()
+        verification_code = generate_verification_code()
+        data[verification_code] = uploaded_file.name
+        save_data(data)
         st.success(f"✅ '{uploaded_file.name}' വിജയകരമായി അപ്‌ലോഡ് ചെയ്തു.")
-        st.info(f"🔐 Verification Code: `{st.session_state.verification_code}`")
+        st.info(f"🔐 Verification Code: `{verification_code}`")
 
 st.markdown("---")
 st.header("ഫയൽ ഡൗൺലോഡ് ചെയ്യുക")
@@ -40,17 +49,18 @@ st.header("ഫയൽ ഡൗൺലോഡ് ചെയ്യുക")
 user_code = st.text_input("Verification Code നൽകുക", type="password")
 
 if st.button("ഡൗൺലോഡ് ചെയ്യാൻ പരിശോധന നടത്തുക"):
-    if st.session_state.uploaded_filename is None:
-        st.error("⚠️ ഫയൽ അപ്‌ലോഡ് ചെയ്തിട്ടില്ല.")
-    elif user_code == st.session_state.verification_code:
-        filepath = os.path.join(UPLOAD_DIR, st.session_state.uploaded_filename)
+    if user_code == "":
+        st.error("⚠️ Verification Code നൽകുക.")
+    elif user_code in data:
+        filename = data[user_code]
+        filepath = os.path.join(UPLOAD_DIR, filename)
         if os.path.exists(filepath):
             with open(filepath, "rb") as f:
                 bytes_data = f.read()
             st.download_button(
-                label=f"📥 '{st.session_state.uploaded_filename}' ഡൗൺലോഡ് ചെയ്യാൻ ക്ലിക്കുചെയ്യുക",
+                label=f"📥 '{filename}' ഡൗൺലോഡ് ചെയ്യാൻ ക്ലിക്കുചെയ്യുക",
                 data=bytes_data,
-                file_name=st.session_state.uploaded_filename,
+                file_name=filename,
                 mime="application/octet-stream"
             )
         else:
