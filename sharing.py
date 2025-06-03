@@ -16,15 +16,17 @@ def get_file_download_link(file_buffer, filename):
     except MemoryError:
         return None
 
-# Initialize session state variables
-if 'verification_code' not in st.session_state:
-    st.session_state.verification_code = None
-if 'file_buffer' not in st.session_state:
-    st.session_state.file_buffer = None
-if 'filename' not in st.session_state:
-    st.session_state.filename = None
+# Initialize session state variables with a unique key
+session_key = "file_sharing_session"
+if session_key not in st.session_state:
+    st.session_state[session_key] = {
+        "verification_code": None,
+        "file_buffer": None,
+        "filename": None,
+        "upload_status": False
+    }
 
-# Custom HTML/CSS for a colorful design
+# Custom HTML/CSS for a colorful, mobile-friendly design
 html_content = """
 <!DOCTYPE html>
 <html>
@@ -49,6 +51,8 @@ html_content = """
         .btn-gradient {
             background: linear-gradient(90deg, #06b6d4, #ec4899);
             transition: transform 0.2s, box-shadow 0.2s;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
         }
         .btn-gradient:hover {
             transform: scale(1.05);
@@ -60,16 +64,32 @@ html_content = """
             padding: 0.5rem 1rem;
             border-radius: 0.375rem;
             cursor: pointer;
+            font-size: 0.9rem;
         }
         .copy-button:hover {
             transform: scale(1.05);
         }
+        @media (max-width: 640px) {
+            .container {
+                padding: 1rem;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            h2 {
+                font-size: 1.25rem;
+            }
+            .btn-gradient, .copy-button {
+                width: 100%;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body class="font-sans min-h-screen flex items-center justify-center">
-    <div class="container mx-auto p-6">
-        <div class="shadow-lg rounded-lg p-8 max-w-lg mx-auto">
-            <h1 class="text-4xl font-bold text-center text-cyan-300 mb-6 animate-pulse">IPCS File Sharing</h1>
+    <div class="container mx-auto p-4 sm:p-6">
+        <div class="shadow-lg rounded-lg p-6 sm:p-8 max-w-lg mx-auto">
+            <h1 class="text-3xl sm:text-4xl font-bold text-center text-cyan-300 mb-6 animate-pulse">IPCS File Sharing</h1>
             <div id="content" class="space-y-6">
                 <!-- Streamlit will inject content here -->
             </div>
@@ -83,39 +103,43 @@ html_content = """
 st.markdown(html_content, unsafe_allow_html=True)
 
 # Streamlit app logic
-st.markdown("<h2 class='text-xl font-semibold text-white mb-4'>Upload a File (Max 1GB per file)</h2>", unsafe_allow_html=True)
-st.markdown("<p class='text-gray-300 mb-4'>Drag and drop or click to select a file to share securely. Each file must be 1GB or smaller.</p>", unsafe_allow_html=True)
-uploaded_file = st.file_uploader("Choose a file to share", type=None, key="file_uploader")
+st.markdown("<h2 class='text-lg sm:text-xl font-semibold text-white mb-4'>Upload a File (Max 1GB)</h2>", unsafe_allow_html=True)
+st.markdown("<p class='text-gray-300 mb-4 text-sm sm:text-base'>Drag and drop or tap to select a file to share securely. Each file must be 1GB or smaller.</p>", unsafe_allow_html=True)
+uploaded_file = st.file_uploader("Choose a file to share", type=None, key=f"file_uploader_{session_key}")
 
 if uploaded_file is not None:
     # Check file size (1GB = 1024 * 1024 * 1024 bytes)
     max_size = 1024 * 1024 * 1024  # 1GB in bytes
     if uploaded_file.size > max_size:
         st.markdown(
-            "<div class='bg-red-200 p-4 rounded-md text-red-800'>Error: File size exceeds 1GB limit. Please upload a file smaller than 1GB.</div>",
+            "<div class='bg-red-200 p-4 rounded-md text-red-800 text-sm sm:text-base'>Error: File size exceeds 1GB limit. Please upload a file smaller than 1GB.</div>",
             unsafe_allow_html=True
         )
+        st.session_state[session_key]["upload_status"] = False
     else:
         try:
             # Reset session state for new file
-            st.session_state.file_buffer = io.BytesIO(uploaded_file.read())
-            st.session_state.filename = uploaded_file.name
-            st.session_state.verification_code = generate_verification_code()
+            st.session_state[session_key] = {
+                "file_buffer": io.BytesIO(uploaded_file.read()),
+                "filename": uploaded_file.name,
+                "verification_code": generate_verification_code(),
+                "upload_status": True
+            }
             
             # JavaScript for copy-to-clipboard functionality
             copy_script = f"""
             <script>
                 function copyCode() {{
-                    navigator.clipboard.writeText('{st.session_state.verification_code}');
+                    navigator.clipboard.writeText('{st.session_state[session_key]["verification_code"]}');
                     alert('Verification code copied to clipboard!');
                 }}
             </script>
             """
             st.markdown(
                 f"""
-                <div class='bg-green-200 p-4 rounded-md'>
-                    <p class='text-green-800'>File uploaded successfully: <strong>{uploaded_file.name}</strong> ({uploaded_file.size / (1024 * 1024):.2f} MB)</p>
-                    <p class='text-green-800'>Verification code: <strong>{st.session_state.verification_code}</strong></p>
+                <div class='bg-green-200 p-4 rounded-md text-sm sm:text-base'>
+                    <p class='text-green-800'>File uploaded successfully: <strong>{st.session_state[session_key]["filename"]}</strong> ({uploaded_file.size / (1024 * 1024):.2f} MB)</p>
+                    <p class='text-green-800'>Verification code: <strong>{st.session_state[session_key]["verification_code"]}</strong></p>
                     <button class='copy-button mt-2' onclick='copyCode()'>Copy Code</button>
                 </div>
                 {copy_script}
@@ -124,53 +148,75 @@ if uploaded_file is not None:
             )
         except MemoryError:
             st.markdown(
-                "<div class='bg-red-200 p-4 rounded-md text-red-800'>Error: Insufficient memory to process the file. Try a smaller file.</div>",
+                "<div class='bg-red-200 p-4 rounded-md text-red-800 text-sm sm:text-base'>Error: Insufficient memory to process the file. Try a smaller file.</div>",
                 unsafe_allow_html=True
             )
+            st.session_state[session_key]["upload_status"] = False
+
+# Display upload status
+if st.session_state[session_key]["upload_status"]:
+    st.markdown(
+        "<div class='bg-blue-200 p-2 rounded-md text-blue-800 text-sm sm:text-base'>Status: File uploaded and ready for sharing.</div>",
+        unsafe_allow_html=True
+    )
+else:
+    st.markdown(
+        "<div class='bg-yellow-200 p-2 rounded-md text-yellow-800 text-sm sm:text-base'>Status: No file uploaded yet.</div>",
+        unsafe_allow_html=True
+    )
 
 # Verification code input for downloading
-st.markdown("<h2 class='text-xl font-semibold text-white mb-4 mt-8'>Download a File</h2>", unsafe_allow_html=True)
-st.markdown("<p class='text-gray-300 mb-4'>Enter the 6-digit verification code provided by the sender to download the file.</p>", unsafe_allow_html=True)
-user_code = st.text_input("Enter the verification code", type="password", key="code_input")
-if st.button("Verify and Download", key="download_button", help="Click to verify and download the file"):
+st.markdown("<h2 class='text-lg sm:text-xl font-semibold text-white mb-4 mt-8'>Download a File</h2>", unsafe_allow_html=True)
+st.markdown("<p class='text-gray-300 mb-4 text-sm sm:text-base'>Enter the 6-digit verification code provided by the sender to download the file.</p>", unsafe_allow_html=True)
+user_code = st.text_input("Enter the verification code", type="password", key=f"code_input_{session_key}")
+if st.button("Verify and Download", key=f"download_button_{session_key}", help="Tap to verify and download the file"):
     if not user_code:
         st.markdown(
-            "<div class='bg-red-200 p-4 rounded-md text-red-800'>Error: Please enter a verification code.</div>",
+            "<div class='bg-red-200 p-4 rounded-md text-red-800 text-sm sm:text-base'>Error: Please enter a verification code.</div>",
             unsafe_allow_html=True
         )
-    elif st.session_state.verification_code is None or st.session_state.file_buffer is None:
+    elif not st.session_state[session_key]["upload_status"] or st.session_state[session_key]["file_buffer"] is None:
         st.markdown(
-            "<div class='bg-red-200 p-4 rounded-md text-red-800'>Error: No file has been uploaded yet.</div>",
+            "<div class='bg-red-200 p-4 rounded-md text-red-800 text-sm sm:text-base'>Error: No file has been uploaded yet. Please upload a file first.</div>",
             unsafe_allow_html=True
         )
-    elif user_code == st.session_state.verification_code:
-        download_link = get_file_download_link(st.session_state.file_buffer, st.session_state.filename)
+    elif user_code == st.session_state[session_key]["verification_code"]:
+        download_link = get_file_download_link(st.session_state[session_key]["file_buffer"], st.session_state[session_key]["filename"])
         if download_link:
             st.markdown(
                 f"""
-                <div class='bg-blue-200 p-4 rounded-md'>
-                    <p class='text-blue-800'>Verification successful! <a href='{download_link}' download='{st.session_state.filename}' class='text-white underline btn-gradient inline-block px-4 py-2 rounded-md'>Click here to download {st.session_state.filename}</a></p>
+                <div class='bg-blue-200 p-4 rounded-md text-sm sm:text-base'>
+                    <p class='text-blue-800'>Verification successful! <a href='{download_link}' download='{st.session_state[session_key]["filename"]}' class='text-white underline btn-gradient inline-block px-4 py-2 rounded-md'>Tap to download {st.session_state[session_key]["filename"]}</a></p>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
         else:
             st.markdown(
-                "<div class='bg-red-200 p-4 rounded-md text-red-800'>Error: Failed to generate download link due to memory issues. Try a smaller file.</div>",
+                "<div class='bg-red-200 p-4 rounded-md text-red-800 text-sm sm:text-base'>Error: Failed to generate download link due to memory issues. Try a smaller file.</div>",
                 unsafe_allow_html=True
             )
     else:
         st.markdown(
-            f"""
-            <div class='bg-red-200 p-4 rounded-md text-red-800'>Error: Incorrect verification code. Please try again.</div>
-            """,
+            "<div class='bg-red-200 p-4 rounded-md text-red-800 text-sm sm:text-base'>Error: Incorrect verification code. Please try again.</div>",
             unsafe_allow_html=True
         )
+
+# Debug information (visible only to sender for troubleshooting)
+if st.session_state[session_key]["upload_status"]:
+    st.markdown(
+        f"""
+        <div class='bg-gray-200 p-4 rounded-md text-gray-800 text-sm mt-4'>
+            <p>Debug Info (for sender): File: <strong>{st.session_state[session_key]["filename"]}</strong>, Code: <strong>{st.session_state[session_key]["verification_code"]}</strong></p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # Footer
 st.markdown(
     """
-    <div class='mt-8 text-center text-gray-300'>
+    <div class='mt-8 text-center text-gray-300 text-sm sm:text-base'>
         <p>Built with Streamlit & Tailwind CSS | Supports drag-and-drop files up to 1GB</p>
     </div>
     """,
