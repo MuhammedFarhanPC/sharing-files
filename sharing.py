@@ -3,7 +3,6 @@ import random
 import string
 import io
 import base64
-import sys
 
 # Function to generate a 6-digit verification code
 def generate_verification_code():
@@ -55,6 +54,16 @@ html_content = """
             transform: scale(1.05);
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
         }
+        .copy-button {
+            background: linear-gradient(90deg, #34d399, #10b981);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+        }
+        .copy-button:hover {
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body class="font-sans min-h-screen flex items-center justify-center">
@@ -76,7 +85,7 @@ st.markdown(html_content, unsafe_allow_html=True)
 # Streamlit app logic
 st.markdown("<h2 class='text-xl font-semibold text-white mb-4'>Upload a File (Max 1GB per file)</h2>", unsafe_allow_html=True)
 st.markdown("<p class='text-gray-300 mb-4'>Drag and drop or click to select a file to share securely. Each file must be 1GB or smaller.</p>", unsafe_allow_html=True)
-uploaded_file = st.file_uploader("Choose a file to share", type=None)
+uploaded_file = st.file_uploader("Choose a file to share", type=None, key="file_uploader")
 
 if uploaded_file is not None:
     # Check file size (1GB = 1024 * 1024 * 1024 bytes)
@@ -88,21 +97,28 @@ if uploaded_file is not None:
         )
     else:
         try:
-            # Read file into memory
-            file_buffer = io.BytesIO(uploaded_file.read())
-            st.session_state.file_buffer = file_buffer
+            # Reset session state for new file
+            st.session_state.file_buffer = io.BytesIO(uploaded_file.read())
             st.session_state.filename = uploaded_file.name
+            st.session_state.verification_code = generate_verification_code()
             
-            # Generate or retrieve verification code
-            if st.session_state.verification_code is None:
-                st.session_state.verification_code = generate_verification_code()
-            
+            # JavaScript for copy-to-clipboard functionality
+            copy_script = f"""
+            <script>
+                function copyCode() {{
+                    navigator.clipboard.writeText('{st.session_state.verification_code}');
+                    alert('Verification code copied to clipboard!');
+                }}
+            </script>
+            """
             st.markdown(
                 f"""
                 <div class='bg-green-200 p-4 rounded-md'>
                     <p class='text-green-800'>File uploaded successfully: <strong>{uploaded_file.name}</strong> ({uploaded_file.size / (1024 * 1024):.2f} MB)</p>
-                    <p class='text-green-800'>Share this verification code with the receiver: <strong>{st.session_state.verification_code}</strong></p>
+                    <p class='text-green-800'>Verification code: <strong>{st.session_state.verification_code}</strong></p>
+                    <button class='copy-button mt-2' onclick='copyCode()'>Copy Code</button>
                 </div>
+                {copy_script}
                 """,
                 unsafe_allow_html=True
             )
@@ -114,10 +130,15 @@ if uploaded_file is not None:
 
 # Verification code input for downloading
 st.markdown("<h2 class='text-xl font-semibold text-white mb-4 mt-8'>Download a File</h2>", unsafe_allow_html=True)
-st.markdown("<p class='text-gray-300 mb-4'>Enter the verification code to download the shared file.</p>", unsafe_allow_html=True)
-user_code = st.text_input("Enter the verification code", type="password")
+st.markdown("<p class='text-gray-300 mb-4'>Enter the 6-digit verification code provided by the sender to download the file.</p>", unsafe_allow_html=True)
+user_code = st.text_input("Enter the verification code", type="password", key="code_input")
 if st.button("Verify and Download", key="download_button", help="Click to verify and download the file"):
-    if st.session_state.verification_code is None or st.session_state.file_buffer is None:
+    if not user_code:
+        st.markdown(
+            "<div class='bg-red-200 p-4 rounded-md text-red-800'>Error: Please enter a verification code.</div>",
+            unsafe_allow_html=True
+        )
+    elif st.session_state.verification_code is None or st.session_state.file_buffer is None:
         st.markdown(
             "<div class='bg-red-200 p-4 rounded-md text-red-800'>Error: No file has been uploaded yet.</div>",
             unsafe_allow_html=True
@@ -128,7 +149,7 @@ if st.button("Verify and Download", key="download_button", help="Click to verify
             st.markdown(
                 f"""
                 <div class='bg-blue-200 p-4 rounded-md'>
-                    <p class='text-blue-800'>Verification successful! <a href='{download_link}' download='{st.session_state.filename}' class='text-blue-600 underline btn-gradient inline-block px-4 py-2 rounded-md text-white'>Click here to download {st.session_state.filename}</a></p>
+                    <p class='text-blue-800'>Verification successful! <a href='{download_link}' download='{st.session_state.filename}' class='text-white underline btn-gradient inline-block px-4 py-2 rounded-md'>Click here to download {st.session_state.filename}</a></p>
                 </div>
                 """,
                 unsafe_allow_html=True
@@ -140,7 +161,9 @@ if st.button("Verify and Download", key="download_button", help="Click to verify
             )
     else:
         st.markdown(
-            "<div class='bg-red-200 p-4 rounded-md text-red-800'>Error: Incorrect verification code.</div>",
+            f"""
+            <div class='bg-red-200 p-4 rounded-md text-red-800'>Error: Incorrect verification code. Please try again.</div>
+            """,
             unsafe_allow_html=True
         )
 
