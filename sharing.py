@@ -3,10 +3,8 @@ import random
 import string
 import os
 
-# നിങ്ങളുടെ പാത്ത് ഇവിടെ ശരിയായി കൊടുക്കുക
 UPLOAD_DIR = r"C:\Users\USER\Desktop\farhan\upload file"
 
-# uploads ഫോൾഡർ ഉണ്ടാക്കുക (if not exists)
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
