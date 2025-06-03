@@ -3,6 +3,7 @@ import random
 import string
 import io
 import base64
+import time
 
 # Function to generate a 6-digit verification code
 def generate_verification_code():
@@ -16,14 +17,15 @@ def get_file_download_link(file_buffer, filename):
     except MemoryError:
         return None
 
-# Initialize session state variables with a unique key
-session_key = "file_sharing_session"
+# Initialize session state with a unique key
+session_key = f"file_sharing_session_{int(time.time())}"  # Unique key to avoid conflicts
 if session_key not in st.session_state:
     st.session_state[session_key] = {
         "verification_code": None,
         "file_buffer": None,
         "filename": None,
-        "upload_status": False
+        "upload_status": False,
+        "last_input": None
     }
 
 # Custom HTML/CSS for a colorful, mobile-friendly design
@@ -83,6 +85,10 @@ html_content = """
                 width: 100%;
                 text-align: center;
             }
+            input[type="password"] {
+                font-size: 1rem;
+                padding: 0.5rem;
+            }
         }
     </style>
 </head>
@@ -123,7 +129,8 @@ if uploaded_file is not None:
                 "file_buffer": io.BytesIO(uploaded_file.read()),
                 "filename": uploaded_file.name,
                 "verification_code": generate_verification_code(),
-                "upload_status": True
+                "upload_status": True,
+                "last_input": None
             }
             
             # JavaScript for copy-to-clipboard functionality
@@ -168,8 +175,10 @@ else:
 # Verification code input for downloading
 st.markdown("<h2 class='text-lg sm:text-xl font-semibold text-white mb-4 mt-8'>Download a File</h2>", unsafe_allow_html=True)
 st.markdown("<p class='text-gray-300 mb-4 text-sm sm:text-base'>Enter the 6-digit verification code provided by the sender to download the file.</p>", unsafe_allow_html=True)
-user_code = st.text_input("Enter the verification code", type="password", key=f"code_input_{session_key}")
+user_code = st.text_input("Enter the verification code", type="text", key=f"code_input_{session_key}")
 if st.button("Verify and Download", key=f"download_button_{session_key}", help="Tap to verify and download the file"):
+    user_code = user_code.strip() if user_code else ""  # Trim whitespace
+    st.session_state[session_key]["last_input"] = user_code  # Log input for debugging
     if not user_code:
         st.markdown(
             "<div class='bg-red-200 p-4 rounded-md text-red-800 text-sm sm:text-base'>Error: Please enter a verification code.</div>",
@@ -198,20 +207,21 @@ if st.button("Verify and Download", key=f"download_button_{session_key}", help="
             )
     else:
         st.markdown(
-            "<div class='bg-red-200 p-4 rounded-md text-red-800 text-sm sm:text-base'>Error: Incorrect verification code. Please try again.</div>",
+            f"""
+            <div class='bg-red-200 p-4 rounded-md text-red-800 text-sm sm:text-base'>Error: Incorrect verification code. You entered: <strong>{user_code}</strong>. Please try again.</div>
+            """,
             unsafe_allow_html=True
         )
 
 # Debug information (visible only to sender for troubleshooting)
 if st.session_state[session_key]["upload_status"]:
-    st.markdown(
-        f"""
-        <div class='bg-gray-200 p-4 rounded-md text-gray-800 text-sm mt-4'>
-            <p>Debug Info (for sender): File: <strong>{st.session_state[session_key]["filename"]}</strong>, Code: <strong>{st.session_state[session_key]["verification_code"]}</strong></p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    debug_info = f"""
+    <div class='bg-gray-200 p-4 rounded-md text-gray-800 text-sm sm:text-base mt-4'>
+        <p>Debug Info (for sender): File: <strong>{st.session_state[session_key]["filename"]}</strong>, Code: <strong>{st.session_state[session_key]["verification_code"]}</strong></p>
+        <p>Last entered code: <strong>{st.session_state[session_key]["last_input"] or "None"}</strong></p>
+    </div>
+    """
+    st.markdown(debug_info, unsafe_allow_html=True)
 
 # Footer
 st.markdown(
