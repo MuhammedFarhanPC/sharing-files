@@ -4,9 +4,11 @@ import string
 import os
 import json
 
-UPLOAD_DIR = "C:\Users\USER\Desktop\farhan\upload file""
-DATA_FILE = "data.json"
+# Raw string to avoid escape character problems
+UPLOAD_DIR = r"C:\Users\USER\Desktop\farhan\upload file"
+DATA_FILE = r"C:\Users\USER\Desktop\farhan\upload file\data.json"
 
+# Uploads ഫോൾഡർ ഉണ്ടാക്കുക
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
