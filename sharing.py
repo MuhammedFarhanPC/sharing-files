@@ -3,7 +3,6 @@ import random
 import string
 import io
 import base64
-import time
 
 # Function to generate a 6-digit verification code
 def generate_verification_code():
@@ -17,8 +16,8 @@ def get_file_download_link(file_buffer, filename):
     except MemoryError:
         return None
 
-# Initialize session state with a unique key
-session_key = f"file_sharing_session_{int(time.time())}"  # Unique key to avoid conflicts
+# Initialize session state with a static key
+session_key = "file_sharing_session"
 if session_key not in st.session_state:
     st.session_state[session_key] = {
         "verification_code": None,
@@ -85,9 +84,10 @@ html_content = """
                 width: 100%;
                 text-align: center;
             }
-            input[type="password"] {
+            input[type="text"] {
                 font-size: 1rem;
                 padding: 0.5rem;
+                width: 100%;
             }
         }
     </style>
@@ -111,7 +111,7 @@ st.markdown(html_content, unsafe_allow_html=True)
 # Streamlit app logic
 st.markdown("<h2 class='text-lg sm:text-xl font-semibold text-white mb-4'>Upload a File (Max 1GB)</h2>", unsafe_allow_html=True)
 st.markdown("<p class='text-gray-300 mb-4 text-sm sm:text-base'>Drag and drop or tap to select a file to share securely. Each file must be 1GB or smaller.</p>", unsafe_allow_html=True)
-uploaded_file = st.file_uploader("Choose a file to share", type=None, key=f"file_uploader_{session_key}")
+uploaded_file = st.file_uploader("Choose a file to share", type=None, key="file_uploader")
 
 if uploaded_file is not None:
     # Check file size (1GB = 1024 * 1024 * 1024 bytes)
@@ -175,8 +175,16 @@ else:
 # Verification code input for downloading
 st.markdown("<h2 class='text-lg sm:text-xl font-semibold text-white mb-4 mt-8'>Download a File</h2>", unsafe_allow_html=True)
 st.markdown("<p class='text-gray-300 mb-4 text-sm sm:text-base'>Enter the 6-digit verification code provided by the sender to download the file.</p>", unsafe_allow_html=True)
-user_code = st.text_input("Enter the verification code", type="text", key=f"code_input_{session_key}")
-if st.button("Verify and Download", key=f"download_button_{session_key}", help="Tap to verify and download the file"):
+try:
+    user_code = st.text_input("Enter the verification code", type="text", key="code_input", help="Enter the 6-digit code exactly as provided")
+except st.errors.StreamlitAPIException:
+    st.markdown(
+        "<div class='bg-red-200 p-4 rounded-md text-red-800 text-sm sm:text-base'>Error: Failed to render input field. Please refresh the page and try again.</div>",
+        unsafe_allow_html=True
+    )
+    user_code = ""
+
+if st.button("Verify and Download", key="download_button", help="Tap to verify and download the file"):
     user_code = user_code.strip() if user_code else ""  # Trim whitespace
     st.session_state[session_key]["last_input"] = user_code  # Log input for debugging
     if not user_code:
