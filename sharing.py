@@ -8,7 +8,7 @@ import json
 UPLOAD_DIR = r"C:\Users\USER\Desktop\farhan\upload file"
 DATA_FILE = r"C:\Users\USER\Desktop\farhan\upload file\data.json"
 
-# Uploads ഫോൾഡർ ഉണ്ടാക്കുക
+# Create uploads folder if it doesn't exist
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
@@ -29,12 +29,12 @@ st.title("📁 ഫയൽ ഷെയറിങ് ആപ്പ്")
 
 data = load_data()
 
-uploaded_file = st.file_uploader("ഫയൽ തിരഞ്ഞെടുക്കുക (Max 1GB)", type=None)
+uploaded_file = st.file_uploader("ഫയൽ തിരഞ്ഞെടുക്കുക (Max 5GB)", type=None)
 
 if uploaded_file is not None:
-    max_size = 1024 * 1024 * 1024  # 1GB
+    max_size = 5 * 1024 * 1024 * 1024  # 5GB
     if uploaded_file.size > max_size:
-        st.error("⚠️ 1GB-നേക്കാൾ വലുതായ ഫയൽ അപ്‌ലോഡ് ചെയ്യാനാകില്ല.")
+        st.error("⚠️ 5GB-നേക്കാൾ വലുതായ ഫയൽ അപ്‌ലോഡ് ചെയ്യാനാകില്ല.")
     else:
         save_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
         with open(save_path, "wb") as f:
@@ -66,6 +66,6 @@ if st.button("ഡൗൺലോഡ് ചെയ്യാൻ പരിശോധന 
                 mime="application/octet-stream"
             )
         else:
-            st.error("⚠️ ഫയൽ കണ്ടെത്താനായില്ല. ദയവായി വീണ്ടും അപ്‌ലോഡ് ചെയ്യുക.")
+            st.error("⚠️ ഫയൽ കണ്ടെത്താനായില്ല. ദയവായി വീണ്ടും അപ്‌ലോഡ് ചെയ್ಯുക.")
     else:
         st.error("❌ Verification Code തെറ്റാണ്.")
