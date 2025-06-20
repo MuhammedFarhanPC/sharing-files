@@ -25,16 +25,16 @@ def save_data(data):
 def generate_verification_code():
     return ''.join(random.choices(string.digits, k=6))
 
-st.title("📁 ഫയൽ ഷെയറിങ് ആപ്പ്")
+st.title("📁 File Sharing App")
 
 data = load_data()
 
-uploaded_file = st.file_uploader("ഫയൽ തിരഞ്ഞെടുക്കുക (Max 5GB)", type=None)
+uploaded_file = st.file_uploader("Choose a file (Max 5GB)", type=None)
 
 if uploaded_file is not None:
     max_size = 5 * 1024 * 1024 * 1024  # 5GB
     if uploaded_file.size > max_size:
-        st.error("⚠️ 5GB-നേക്കാൾ വലുതായ ഫയൽ അപ്‌ലോഡ് ചെയ്യാനാകില്ല.")
+        st.error("⚠️ Cannot upload files larger than 5GB.")
     else:
         save_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
         with open(save_path, "wb") as f:
@@ -42,17 +42,17 @@ if uploaded_file is not None:
         verification_code = generate_verification_code()
         data[verification_code] = uploaded_file.name
         save_data(data)
-        st.success(f"✅ '{uploaded_file.name}' വിജയകരമായി അപ്‌ലോഡ് ചെയ്തു.")
+        st.success(f"✅ '{uploaded_file.name}' successfully uploaded.")
         st.info(f"🔐 Verification Code: `{verification_code}`")
 
 st.markdown("---")
-st.header("ഫയൽ ഡൗൺലോഡ് ചെയ്യുക")
+st.header("Download File")
 
-user_code = st.text_input("Verification Code നൽകുക", type="password")
+user_code = st.text_input("Enter Verification Code", type="password")
 
-if st.button("ഡൗൺലോഡ് ചെയ്യാൻ പരിശോധന നടത്തുക"):
+if st.button("Verify to Download"):
     if user_code == "":
-        st.error("⚠️ Verification Code നൽകുക.")
+        st.error("⚠️ Please enter a Verification Code.")
     elif user_code in data:
         filename = data[user_code]
         filepath = os.path.join(UPLOAD_DIR, filename)
@@ -60,12 +60,12 @@ if st.button("ഡൗൺലോഡ് ചെയ്യാൻ പരിശോധന 
             with open(filepath, "rb") as f:
                 bytes_data = f.read()
             st.download_button(
-                label=f"📥 '{filename}' ഡൗൺലോഡ് ചെയ്യാൻ ക്ലിക്കുചെയ്യുക",
+                label=f"📥 Click to download '{filename}'",
                 data=bytes_data,
                 file_name=filename,
                 mime="application/octet-stream"
             )
         else:
-            st.error("⚠️ ഫയൽ കണ്ടെത്താനായില്ല. ദയവായി വീണ്ടും അപ്‌ലോഡ് ചെയ್ಯുക.")
+            st.error("⚠️ File not found. Please upload again.")
     else:
-        st.error("❌ Verification Code തെറ്റാണ്.")
+        st.error("❌ Invalid Verification Code.")
